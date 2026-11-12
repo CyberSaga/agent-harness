@@ -40,6 +40,8 @@ def repo(tmp_path: Path) -> Path:
     root.mkdir()
     _git(root, "init", "-q")
     (root / "ruff.toml").write_text("line-length = 100\n", encoding="utf-8")
+    (root / ".claude").mkdir()
+    (root / ".claude" / "agent-harness.json").write_text("{}", encoding="utf-8")
     (root / "tracked.py").write_text(GOOD, encoding="utf-8")
     (root / "notes.md").write_text("x\n", encoding="utf-8")
     (root / "gone.py").write_text(GOOD, encoding="utf-8")

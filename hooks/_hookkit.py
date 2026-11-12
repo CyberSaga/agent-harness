@@ -63,6 +63,16 @@ def load_config(project: Path) -> dict:
     return data if isinstance(data, dict) else {}
 
 
+def has_config(project: Path) -> bool:
+    """True when `<project>/.claude/agent-harness.json` exists and holds a JSON object (an empty `{}`
+    counts: the repo opted in).  Rules that need no key of their own (ruff lint) key off this."""
+    try:
+        data = json.loads((project / ".claude" / "agent-harness.json").read_text(encoding="utf-8-sig"))
+    except (OSError, ValueError):
+        return False
+    return isinstance(data, dict)
+
+
 def fail_open(hook: str, why: str) -> int:
     print(f"{hook}: {why} -- this call was NOT checked.", file=sys.stderr)
     return 1

@@ -13,9 +13,10 @@ Registered on two events:
       like Edit/Write.  No stamp, no git tree or no changed .py: silent exit 0.
 
 The project root is CLAUDE_PROJECT_DIR, else the payload's cwd (the Edit/Write leg falls
-back to the edited file's git root).  The hook does nothing unless that project has a ruff
+back to the edited file's git root).  The hook does nothing unless that project (1) opted in
+with `<project>/.claude/agent-harness.json` (any JSON object, `{}` is enough), (2) has a ruff
 config (`ruff.toml`, `.ruff.toml`, or a `[tool.ruff]` table in pyproject.toml, in the root
-or at the root of its git tree) and a ruff executable: `<project>/.venv/Scripts/ruff.exe`,
+or at the root of its git tree) and (3) a ruff executable is found: `<project>/.venv/Scripts/ruff.exe`,
 `<project>/.venv/bin/ruff`, else ruff on PATH.  A project without ruff is not held to it.
 
 Exit codes (Claude Code hook contract):
@@ -100,8 +101,13 @@ def resolve_ruff(project: Path) -> str | None:
     return shutil.which("ruff")
 
 
+def lint_enabled(project: Path) -> bool:
+    """The repo opted in (agent-harness.json present) and carries a ruff config."""
+    return kit.has_config(project) and has_ruff_config(project)
+
+
 def record_start(payload: dict) -> int:
-    if not has_ruff_config(kit.project_dir(payload)):
+    if not lint_enabled(kit.project_dir(payload)):
         return 0  # nothing will be linted for this call, so no stamp
     directory = stamp_dir()
     path = stamp_path(payload, directory)
@@ -170,7 +176,7 @@ def shell_changed_files(payload: dict) -> list[Path]:
 
 def shell_post(payload: dict) -> int:
     project = kit.project_dir(payload)
-    if not has_ruff_config(project):
+    if not lint_enabled(project):
         return 0
     files = shell_changed_files(payload)
     if not files:
@@ -246,7 +252,7 @@ def main() -> int:
 
     has_project = bool(os.environ.get("CLAUDE_PROJECT_DIR") or payload.get("cwd"))
     project = kit.project_dir(payload) if has_project else file_root
-    if not has_ruff_config(project):
+    if not lint_enabled(project):
         return 0
     ruff = resolve_ruff(project)
     if ruff is None:

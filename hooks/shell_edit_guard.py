@@ -297,7 +297,7 @@ def main() -> int:
     try:
         found = violations(tool_name, command, cwd)
         # Imported here: shell_read_guard imports this module's helpers. Kept out of violations()
-        # because codex_hook.py calls that, and Codex reads through the shell by design.
+        # so that function stays the pure in-place-edit rule.
         import shell_read_guard
 
         reads = shell_read_guard.read_violations(tool_name, command, cwd)

@@ -209,7 +209,7 @@ def test_end_to_end_allowed_is_silent(repo: Path) -> None:
 
 @pytest.mark.parametrize("command", ["sed -n 1,5p TODOS.md", "cat TODOS.md", "Get-Content TODOS.md | Select-Object -First 5"])
 def test_end_to_end_denies_a_plain_shell_read_of_a_tracked_file(repo: Path, command: str) -> None:
-    """shell_read_guard is wired through this hook's main(), not through violations() (codex_hook imports that)."""
+    """shell_read_guard is wired through this hook's main(), not through violations() (it stays the pure edit rule)."""
     result = _run({"tool_name": "Bash", "cwd": str(repo), "tool_input": {"command": command}})
     assert result.returncode == 0
     out = json.loads(result.stdout)["hookSpecificOutput"]

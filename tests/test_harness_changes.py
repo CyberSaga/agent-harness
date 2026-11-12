@@ -202,8 +202,9 @@ def test_namespaced_agent_resolves_against_the_plugin_agents_dir(tmp_path: Path,
 def test_namespaced_agent_does_not_read_the_project_agents_dir(tmp_path: Path, plugin: Path) -> None:
     project = tmp_path / "proj"
     (project / ".claude" / "agents").mkdir(parents=True)
-    (project / ".claude" / "agents" / "worker.md").write_text("---\nmodel: opus\n---\n", encoding="utf-8")
-    assert route.decide("Agent", {"subagent_type": "agent-harness:nope"}, project, plugin_root=plugin) is not None
+    (project / ".claude" / "agents" / "only-in-project.md").write_text("---\nmodel: opus\n---\n", encoding="utf-8")
+    assert route.decide("Agent", {"subagent_type": "only-in-project"}, project, plugin_root=plugin) is None
+    assert route.decide("Agent", {"subagent_type": "agent-harness:only-in-project"}, project, plugin_root=plugin) is not None
 
 
 def test_default_plugin_root_is_the_parent_of_hooks() -> None:
@@ -229,10 +230,13 @@ def _git(repo: Path, *args: str) -> None:
     subprocess.run(["git", *args], cwd=str(repo), check=True, capture_output=True)
 
 
-def _repo(tmp_path: Path, config_file: str | None, body: str = "x = 1\n") -> Path:
+def _repo(tmp_path: Path, config_file: str | None, body: str = "x = 1\n", harness: bool = True) -> Path:
     root = tmp_path / "repo"
     root.mkdir()
     _git(root, "init", "-q")
+    if harness:
+        (root / ".claude").mkdir()
+        (root / ".claude" / "agent-harness.json").write_text("{}", encoding="utf-8")
     (root / "m.py").write_text("import os\n" + body, encoding="utf-8")
     if config_file == "pyproject.toml":
         (root / config_file).write_text("[tool.ruff]\nline-length = 100\n", encoding="utf-8")
@@ -250,6 +254,30 @@ def test_ruff_config_detection(tmp_path: Path) -> None:
         sub.mkdir()
         repo = _repo(sub, name)
         assert roe.has_ruff_config(repo) is expected, name
+
+
+@pytest.mark.skipif(not HAS_RUFF, reason="ruff not installed")
+def test_ruff_does_nothing_without_agent_harness_json_even_with_a_ruff_config(tmp_path: Path) -> None:
+    repo = _repo(tmp_path, "ruff.toml", harness=False)
+    edit = _run("ruff_on_edit.py", _ruff_payload(repo, cwd=str(repo)))
+    assert edit.returncode == 0 and edit.stderr == b""
+    stamps = tmp_path / "stamps"
+    shell = {"hook_event_name": "PreToolUse", "tool_name": "Bash", "tool_use_id": "t1", "session_id": "s",
+             "cwd": str(repo), "tool_input": {"command": "true"}}
+    assert _run("ruff_on_edit.py", shell, env={"CLAUDE_RUFF_STAMP_DIR": str(stamps)}).returncode == 0
+    assert not stamps.exists()
+    # a stamp left by a call that did start (e.g. the config was removed meanwhile) is not linted either
+    stamps.mkdir()
+    (stamps / "s_t1.stamp").write_text("0.0", encoding="ascii")
+    post = {**shell, "hook_event_name": "PostToolUse"}
+    result = _run("ruff_on_edit.py", post, env={"CLAUDE_RUFF_STAMP_DIR": str(stamps)})
+    assert result.returncode == 0 and result.stderr == b""
+
+
+def test_has_config_needs_a_json_object(tmp_path: Path) -> None:
+    assert kit.has_config(_project(tmp_path, {}, "a")) is True
+    assert kit.has_config(_project(tmp_path, None, "b")) is False
+    assert kit.has_config(_project(tmp_path, ["x"], "c")) is False
 
 
 @pytest.mark.skipif(not HAS_RUFF, reason="ruff not installed")
@@ -277,9 +305,13 @@ def test_ruff_project_root_comes_from_claude_project_dir_over_cwd(tmp_path: Path
     assert _run("ruff_on_edit.py", payload, env={"CLAUDE_PROJECT_DIR": str(elsewhere)}).returncode == 0
 
 
+@pytest.mark.skipif(not HAS_RUFF, reason="ruff not installed")
 def test_ruff_missing_binary_is_silent(tmp_path: Path) -> None:
     repo = _repo(tmp_path, "ruff.toml")
-    result = _run("ruff_on_edit.py", _ruff_payload(repo, cwd=str(repo)), env={"PATH": str(tmp_path / "empty")})
+    payload = _ruff_payload(repo, cwd=str(repo))
+    assert _run("ruff_on_edit.py", payload).returncode == 2  # control: with ruff on PATH the file is linted
+    git_dir = str(Path(str(shutil.which("git"))).parent)  # git must stay reachable, ruff must not
+    result = _run("ruff_on_edit.py", payload, env={"PATH": git_dir})
     assert result.returncode == 0 and result.stderr == b""
 
 

@@ -10,7 +10,9 @@
   `claude --plugin-dir <this dir>`, then ask for any subagent and see the "Retry cap:" footer in its prompt.
 - Per-repo config `<project>/.claude/agent-harness.json` (all keys optional):
   `{"pytest": {"venv": ".venv", "suite_command": "...", "suite_dir": "tests"}, "process_kill": true}`.
-  No `pytest` key = no pytest rules; `suite_command` is what switches the whole-suite rule on.
+  No `pytest` key = no pytest rules; `suite_command` is what switches the whole-suite rule on. Ruff lint has no key of its
+  own: it runs only when the file exists (any JSON object, `{}` is enough) AND the project has a ruff config AND a ruff
+  binary is found (`kit.has_config`).
 - Next: agents (log-reader, fast-worker, deep-reasoner, implementer, plan-code-reviewer), skills, RULES.md. The
   `agent-harness:<name>` lookup in model_route_guard already reads `agents/<name>.md`, which does not exist yet.
 - Owner constraint: no user-level registration. Trial per repo with `claude --plugin-dir <this dir>` (one session
@@ -79,5 +81,8 @@ namespaced agent lookup, payload project dir) gets red tests first. Run them one
   removed, so it stays in pdf_editor only and is not registered here.
 - 2026-11-12: a test pins that every hooks/*.py entry script is registered and every registered script exists
   (`tests/test_hooks_json.py`; `shell_read_guard.py` is listed there as a library, called by shell_edit_guard).
+- 2026-11-12: follow-up after review: ruff lint now also needs `agent-harness.json` (brief: absent file = pytest rules and
+  ruff do nothing; the table's ruff-config / binary skips apply on top). Weak tests fixed (missing-binary keeps git on PATH,
+  namespaced lookup uses a name that exists only in the project dir).
 - Known leftovers: the stop_latch / cold_cache_gate prompts contain Chinese deny text and phrases (owner's language, no
   project names); `plugin.json` lacks README / LICENSE / icon (only matters for `--profile directory`).
