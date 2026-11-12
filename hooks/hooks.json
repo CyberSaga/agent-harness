@@ -1,0 +1,60 @@
+{
+  "description": "agent-harness guard hooks",
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Edit|Write|Bash|PowerShell",
+        "hooks": [
+          { "type": "command", "command": "python \"${CLAUDE_PLUGIN_ROOT}/hooks/ruff_on_edit.py\"", "timeout": 60 }
+        ]
+      }
+    ],
+    "PreToolUse": [
+      {
+        "matcher": "Agent|Workflow|Bash|PowerShell",
+        "hooks": [
+          { "type": "command", "command": "python \"${CLAUDE_PLUGIN_ROOT}/hooks/agent_prompt_guard.py\"", "timeout": 20 }
+        ]
+      },
+      {
+        "matcher": "Agent|Workflow|ScheduleWakeup|CronCreate|Monitor",
+        "hooks": [
+          { "type": "command", "command": "python \"${CLAUDE_PLUGIN_ROOT}/hooks/stop_latch.py\" --event tool", "timeout": 20 }
+        ]
+      },
+      {
+        "matcher": "Agent|Workflow",
+        "hooks": [
+          { "type": "command", "command": "python \"${CLAUDE_PLUGIN_ROOT}/hooks/quota_breaker.py\"", "timeout": 20 }
+        ]
+      },
+      {
+        "matcher": "Agent|Workflow",
+        "hooks": [
+          { "type": "command", "command": "python \"${CLAUDE_PLUGIN_ROOT}/hooks/model_route_guard.py\"", "timeout": 20 }
+        ]
+      },
+      {
+        "matcher": "Agent",
+        "hooks": [
+          { "type": "command", "command": "python \"${CLAUDE_PLUGIN_ROOT}/hooks/retry_cap_footer.py\"", "timeout": 20 }
+        ]
+      },
+      {
+        "matcher": "Bash|PowerShell",
+        "hooks": [
+          { "type": "command", "command": "python \"${CLAUDE_PLUGIN_ROOT}/hooks/shell_edit_guard.py\"", "timeout": 20 },
+          { "type": "command", "command": "python \"${CLAUDE_PLUGIN_ROOT}/hooks/ruff_on_edit.py\"", "timeout": 20 }
+        ]
+      }
+    ],
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          { "type": "command", "command": "python \"${CLAUDE_PLUGIN_ROOT}/hooks/cold_cache_gate.py\"", "timeout": 20 },
+          { "type": "command", "command": "python \"${CLAUDE_PLUGIN_ROOT}/hooks/stop_latch.py\" --event prompt", "timeout": 20 }
+        ]
+      }
+    ]
+  }
+}

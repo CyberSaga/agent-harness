@@ -1,0 +1,6 @@
+{
+  "name": "agent-harness",
+  "version": "0.1.0",
+  "description": "Generic agent guard hooks, agents and rules extracted from a working project harness. Trial per repo with --plugin-dir.",
+  "author": { "name": "CyberSaga" }
+}
