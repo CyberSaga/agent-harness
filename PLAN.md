@@ -13,8 +13,9 @@
   No `pytest` key = no pytest rules; `suite_command` is what switches the whole-suite rule on. Ruff lint has no key of its
   own: it runs only when the file exists (any JSON object, `{}` is enough) AND the project has a ruff config AND a ruff
   binary is found (`kit.has_config`).
-- Next: agents (log-reader, fast-worker, deep-reasoner, implementer, plan-code-reviewer), skills, RULES.md. The
-  `agent-harness:<name>` lookup in model_route_guard already reads `agents/<name>.md`, which does not exist yet.
+- 2026-11-12: agents/skills/RULES.md slice DONE (commit "port agents, skills, RULES.md"): 5 agents, 4 skills, RULES.md,
+  README.md, `tests/test_plugin_layout.py`. Validate passes (warnings: no icon, no marketplace install line).
+- Next: owner live trial per repo (see README); decide on pre_paste_gate / Codex / git hooks only if wanted.
 - Owner constraint: no user-level registration. Trial per repo with `claude --plugin-dir <this dir>` (one session
   only, nothing written to `~/.claude/settings.json`). Never trial it in pdf_editor: its own
   `.claude/settings.json` registers the same hooks, so every hook would fire twice.
@@ -84,5 +85,11 @@ namespaced agent lookup, payload project dir) gets red tests first. Run them one
 - 2026-11-12: follow-up after review: ruff lint now also needs `agent-harness.json` (brief: absent file = pytest rules and
   ruff do nothing; the table's ruff-config / binary skips apply on top). Weak tests fixed (missing-binary keeps git on PATH,
   namespaced lookup uses a name that exists only in the project dir).
+- 2026-11-12: agents/skills/RULES.md slice. Agents ported with frontmatter kept (incl. `effort`); project-specific hard
+  constraints, venv/suite/test dir commands, code-index and layer rules replaced by "use the project's CLAUDE.md / AGENTS.md".
+  implementer's text-commit-engine exclusion dropped. Skills: scope-fence / systematic-debugging / adversarial-verify lost
+  CLAUDE.md section refs and venv/layer wording. RULES.md is under 60 lines plus the config section; README documents the
+  `--plugin-dir` trial. `tests/test_plugin_layout.py` pins agent frontmatter, that the namespaced agents pass
+  model_route_guard.decide without a model, and a hygiene scan of agents/skills/RULES/README.
 - Known leftovers: the stop_latch / cold_cache_gate prompts contain Chinese deny text and phrases (owner's language, no
   project names); `plugin.json` lacks README / LICENSE / icon (only matters for `--profile directory`).
