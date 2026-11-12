@@ -302,7 +302,7 @@ def test_ruff_project_root_comes_from_claude_project_dir_over_cwd(tmp_path: Path
     elsewhere.mkdir()
     payload = _ruff_payload(configured, cwd=str(elsewhere))
     assert _run("ruff_on_edit.py", payload, env={"CLAUDE_PROJECT_DIR": str(configured)}).returncode == 2
-    assert _run("ruff_on_edit.py", payload, env={"CLAUDE_PROJECT_DIR": str(elsewhere)}).returncode == 0
+    # the edit leg judges the edited file's own git tree, not the session dir (see the next tests)
 
 
 @pytest.mark.skipif(not HAS_RUFF, reason="ruff not installed")
@@ -369,6 +369,90 @@ def test_shell_guard_deny_text_has_no_project_anecdotes(tmp_path: Path) -> None:
     assert not FORBIDDEN.search(text), text
     assert not re.search(r"20\d\d-\d\d-\d\d", text), text
     assert "TODOS" not in text and "PITFALLS" not in text and "CRLF checkout" not in text
+
+
+# --------------------------------------------------------------------------- review fixes
+
+
+def _cfg_repo(tmp_path: Path, config: object | None) -> Path:
+    repo = _tracked_repo(tmp_path)
+    if config is not None:
+        (repo / ".claude").mkdir()
+        (repo / ".claude" / "agent-harness.json").write_text(json.dumps(config), encoding="utf-8")
+    return repo
+
+
+def _denied(repo: Path, command: str) -> bool:
+    payload = {"tool_name": "Bash", "cwd": str(repo), "tool_input": {"command": command}}
+    result = _run("shell_edit_guard.py", payload, cwd=repo, env={"CLAUDE_PROJECT_DIR": str(repo)})
+    return bool(result.stdout.strip()) and json.loads(result.stdout)["hookSpecificOutput"]["permissionDecision"] == "deny"
+
+
+READ = "cat notes.md"
+EDIT = "sed -i 's/a/b/' notes.md"
+
+
+def test_shell_guards_are_on_without_a_config(tmp_path: Path) -> None:
+    repo = _cfg_repo(tmp_path, None)
+    assert _denied(repo, READ) and _denied(repo, EDIT)
+
+
+@pytest.mark.parametrize(
+    ("config", "read_denied", "edit_denied"),
+    [
+        ({"shell_guards": False}, False, False),
+        ({"shell_guards": {"read": False}}, False, True),
+        ({"shell_guards": {"edit": False}}, True, False),
+        ({"shell_guards": True}, True, True),
+        ({"shell_guards": {}}, True, True),
+    ],
+)
+def test_shell_guards_opt_out_keys(tmp_path: Path, config: object, read_denied: bool, edit_denied: bool) -> None:
+    repo = _cfg_repo(tmp_path, config)
+    assert _denied(repo, READ) is read_denied
+    assert _denied(repo, EDIT) is edit_denied
+
+
+PROSE_CFG = {"venv": ".venv", "suite_command": "scripts/suite.py", "suite_dir": "tests"}
+
+
+def test_guard_suite_dir_word_followed_by_prose_is_not_flagged() -> None:
+    prompt = {"prompt": "pytest tests are flaky on CI, look into it", "description": "d"}
+    assert guard.violations("Agent", prompt, pytest_cfg=PROSE_CFG) == []
+
+
+@pytest.mark.parametrize("tail", ["", " -q", " tests/test_a.py", " --tb=short"])
+def test_guard_suite_dir_as_a_path_or_before_options_is_still_flagged(tail: str) -> None:
+    prompt = {"prompt": "pytest tests" + tail, "description": "d"}
+    kinds = {v.kind for v in guard.violations("Agent", prompt, pytest_cfg=PROSE_CFG)}
+    assert "whole-suite" in kinds or tail.strip() == "tests/test_a.py"
+    assert "bare-pytest" in kinds
+
+
+def test_guard_bare_pytest_text_names_both_interpreter_forms() -> None:
+    text = guard.violations("Bash", {"command": "pytest -q"}, pytest_cfg={"venv": ".venv"})[0].rule()
+    assert ".venv\Scripts\python.exe" in text and ".venv/bin/python" in text
+
+
+def test_ruff_resolve_uses_the_configured_venv_dir(tmp_path: Path) -> None:
+    repo = _repo(tmp_path, "ruff.toml")
+    (repo / ".claude" / "agent-harness.json").write_text(json.dumps({"pytest": {"venv": "envs/ci"}}), encoding="utf-8")
+    bin_dir = repo / "envs" / "ci" / "bin"
+    bin_dir.mkdir(parents=True)
+    fake = bin_dir / "ruff"
+    fake.write_text("", encoding="utf-8")
+    assert roe.resolve_ruff(repo) == str(fake)
+
+
+@pytest.mark.skipif(not HAS_RUFF, reason="ruff not installed")
+def test_ruff_edit_leg_opt_in_comes_from_the_edited_files_repo(tmp_path: Path) -> None:
+    opted = _repo(tmp_path, "ruff.toml")
+    other_parent = tmp_path / "second"
+    other_parent.mkdir()
+    other = _repo(other_parent, None, harness=False)
+    payload = _ruff_payload(other, cwd=str(opted))
+    result = _run("ruff_on_edit.py", payload, env={"CLAUDE_PROJECT_DIR": str(opted)})
+    assert result.returncode == 0 and result.stderr == b""
 
 
 # --------------------------------------------------------------------------- hygiene

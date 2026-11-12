@@ -73,6 +73,17 @@ def has_config(project: Path) -> bool:
     return isinstance(data, dict)
 
 
+def shell_guard_enabled(project: Path, rule: str) -> bool:
+    """The shell guards (`edit`, `read`) are on by default.  `"shell_guards": false` in the config
+    turns both off; `{"shell_guards": {"read": false}}` turns off only that rule."""
+    section = load_config(project).get("shell_guards", True)
+    if section is False:
+        return False
+    if isinstance(section, dict):
+        return section.get(rule, True) is not False
+    return True
+
+
 def fail_open(hook: str, why: str) -> int:
     print(f"{hook}: {why} -- this call was NOT checked.", file=sys.stderr)
     return 1

@@ -6,7 +6,7 @@
 - `agent-harness:implementer` (Sonnet): builds a decided design, red-light first; never commits.
 - `agent-harness:plan-code-reviewer` (Opus, no edit tools): `/code-review high` plus a verdict against the governing plan.
 - Standing authorization, no need to ask: wide reading goes to `agent-harness:log-reader` or a Haiku Explore spawn; a diff over 3 files goes to `agent-harness:plan-code-reviewer` before you call it done; root cause or design goes to `agent-harness:deep-reasoner`; implementing a decided design goes to `agent-harness:implementer`.
-- Name a `model` on every spawn. Leave `effort` off unless the owner names one (the Jev hook picks it).
+- Name a `model` on every spawn. If a user-level effort hook (e.g. Jev) is installed, leave `effort` off and let it pick; otherwise name one.
 - A failing subagent: first have it verify its own work with a test or script, then raise effort one level, then move up one model at lower effort.
 - Spawn prompts give file:line ranges to read and the acceptance criteria. No rules preamble: this file and the hooks already reach every subagent.
 
@@ -23,13 +23,14 @@
 
 ## agent-harness.json
 
-Optional, at `<project>/.claude/agent-harness.json` (the project dir is `CLAUDE_PROJECT_DIR`, else the hook payload's cwd). All keys optional; a missing file means no repo-dependent rule fires.
+Optional, at `<project>/.claude/agent-harness.json` (the project dir is `CLAUDE_PROJECT_DIR`, else the hook payload's cwd). All keys optional. On by default, no file needed: the shell guards (deny in-place shell edits and shell reads of git-tracked files) and the process-kill rule. The test-runner (`pytest`) and lint (ruff) rules need the file.
 
 ```json
 {"pytest": {"venv": ".venv", "suite_command": "scripts/run_all_tests.py", "suite_dir": "tests"},
- "process_kill": true}
+ "process_kill": true, "shell_guards": {"edit": true, "read": true}}
 ```
 
 - `pytest` (object): absent = no pytest rules. `venv` is the interpreter dir pytest must run from (default `.venv`). `suite_command` switches the whole-suite rule on and is named in its deny text. `suite_dir` is the directory whose bare use means "whole suite".
 - `process_kill` (bool, default true): `false` turns off the rule that refuses process-kill commands.
+- `shell_guards` (bool or object, default on): `false` turns off both shell guards; `{"read": false}` turns off only the shell-read rule, `{"edit": false}` only the in-place-edit rule.
 - Ruff on edit has no key: it runs only when the file exists (`{}` is enough), the project has a ruff config, and a ruff binary is found (project `.venv`, else PATH).

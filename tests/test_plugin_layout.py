@@ -85,7 +85,8 @@ def test_no_project_specific_text_in_agents_skills_rules() -> None:
     # Built from fragments so this file does not itself match the repo-wide hygiene grep.
     banned = ("ji" + "ang", "python " + "programs", "pdf" + "_editor", "Py" + "MuPDF", "test" + "_scripts",
               "run" + "_suite", ".code" + "graph")
-    files = [*AGENTS.glob("*.md"), *SKILLS.rglob("*"), ROOT / "RULES.md", ROOT / "README.md"]
+    files = [*AGENTS.glob("*.md"), *SKILLS.rglob("*"), *(ROOT / "hooks").glob("*.py"),
+             *(ROOT / "hooks").glob("*.json"), ROOT / "RULES.md", ROOT / "README.md"]
     for f in files:
         if not f.is_file():
             continue

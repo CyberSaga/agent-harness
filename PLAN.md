@@ -5,9 +5,9 @@
 - 2026-11-12: hooks slice DONE (commit "port generic hooks"). Ported: retry_cap_footer, stop_latch, cold_cache_gate,
   quota_breaker, model_route_guard, shell_edit_guard (+ shell_read_guard library), agent_prompt_guard, ruff_on_edit,
   plus `_hookkit.py` and the new `_shellparse.py`. All registered in `hooks/hooks.json`. Not ported: pre_paste_gate.
-  `claude plugin validate` passes. 7 test files green in `tests/` (`.venv\Scripts\python.exe -m pytest tests/<file>`).
-- The live firing check is NOT done: auto mode refused a headless `claude -p` run. Owner check, from a scratch repo:
-  `claude --plugin-dir <this dir>`, then ask for any subagent and see the "Retry cap:" footer in its prompt.
+  `claude plugin validate` passes. 8 test files green in `tests/` (`.venv\Scripts\python.exe -m pytest tests/<file>`).
+- The live `--plugin-dir` firing check is still the owner's: auto mode refused a headless `claude -p` run. From a scratch
+  repo: `claude --plugin-dir <this dir>`, then spawn `agent-harness:log-reader` and see the "Retry cap:" footer in its prompt.
 - Per-repo config `<project>/.claude/agent-harness.json` (all keys optional):
   `{"pytest": {"venv": ".venv", "suite_command": "...", "suite_dir": "tests"}, "process_kill": true}`.
   No `pytest` key = no pytest rules; `suite_command` is what switches the whole-suite rule on. Ruff lint has no key of its
@@ -91,5 +91,11 @@ namespaced agent lookup, payload project dir) gets red tests first. Run them one
   CLAUDE.md section refs and venv/layer wording. RULES.md is under 60 lines plus the config section; README documents the
   `--plugin-dir` trial. `tests/test_plugin_layout.py` pins agent frontmatter, that the namespaced agents pass
   model_route_guard.decide without a model, and a hygiene scan of agents/skills/RULES/README.
+- 2026-11-12: review fixes. Shell guards stay on by default; config `shell_guards` (false, or {"read"|"edit": false}) opts
+  out (`kit.shell_guard_enabled`). agent_prompt_guard: the suite-dir word followed by a plain English word is prose (`pytest
+  tests are flaky`); bare-pytest deny text names both `{venv}\Scripts\python.exe` and `{venv}/bin/python`. ruff_on_edit:
+  `resolve_ruff` looks in the configured `pytest.venv` dir, and the Edit/Write leg decides opt-in from the edited file's
+  git toplevel, not the session dir (an old test that expected the session dir to win was replaced). test_plugin_layout
+  hygiene scan covers hooks/. Docs: RULES/README list defaults and opt-out keys, the Jev wording, the here-string gap.
 - Known leftovers: the stop_latch / cold_cache_gate prompts contain Chinese deny text and phrases (owner's language, no
   project names); `plugin.json` lacks README / LICENSE / icon (only matters for `--profile directory`).

@@ -10,7 +10,7 @@ Three rules, each denying the tool call instead of relying on someone rememberin
 
 The pytest rules are repo-dependent, so they come from `<project>/.claude/agent-harness.json`:
 
-    {"pytest": {"venv": ".venv", "suite_command": "scripts/run_suite.py", "suite_dir": "tests"},
+    {"pytest": {"venv": ".venv", "suite_command": "scripts/run_all.py", "suite_dir": "tests"},
      "process_kill": true}
 
 `pytest` (object) switches the venv rules on; `venv` is the path fragment that marks a venv
@@ -76,7 +76,8 @@ DEFAULT_VENV = ".venv"
 RULES = {
     "bare-pytest": (
         "never bare `pytest`: run it on the project venv interpreter (`{venv}`), e.g. "
-        "`{venv}/bin/python -m pytest <file>` (the system Python can differ from the project environment)"
+        "`{venv}\\Scripts\\python.exe -m pytest <file>` (Windows) or `{venv}/bin/python -m pytest <file>` "
+        "(the system Python can differ from the project environment)"
     ),
     "system-python": "pytest must run on the project venv (`{venv}`), not on the system Python",
     "whole-suite": (
@@ -212,8 +213,13 @@ def _pytest_violations(
         args = m.group("args") or ""
         tokens = args.split()
         first = tokens[0].strip("\"'") if tokens else ""
-        if first and first != rules.suite_dir and PROSE_TOKEN_RE.match(first):
-            continue  # `pytest lock`, `pytest is slow`: words, not a command line (the suite dir is not a word)
+        second = tokens[1].strip("\"'") if len(tokens) > 1 else ""
+        if first and PROSE_TOKEN_RE.match(first) and (
+            first != rules.suite_dir or (second and PROSE_TOKEN_RE.match(second))
+        ):
+            # `pytest lock`, `pytest is slow`: words, not a command line.  The suite dir counts as a
+            # word only when a plain word follows it (`pytest tests are flaky`), not a path/option/end.
+            continue
         if prose:
             line_start = text.rfind("\n", 0, m.start()) + 1
             if NEGATION_RE.search(text[line_start:m.start()]):

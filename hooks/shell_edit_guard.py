@@ -295,12 +295,15 @@ def main() -> int:
     command = str(tool_input.get("command") or "")
     cwd = str(payload.get("cwd") or os.environ.get("CLAUDE_PROJECT_DIR") or os.getcwd())
     try:
-        found = violations(tool_name, command, cwd)
+        project = kit.project_dir(payload)
+        edit_on = kit.shell_guard_enabled(project, "edit")
+        read_on = kit.shell_guard_enabled(project, "read")
+        found = violations(tool_name, command, cwd) if edit_on else []
         # Imported here: shell_read_guard imports this module's helpers. Kept out of violations()
         # so that function stays the pure in-place-edit rule.
         import shell_read_guard
 
-        reads = shell_read_guard.read_violations(tool_name, command, cwd)
+        reads = shell_read_guard.read_violations(tool_name, command, cwd) if read_on else []
     except Exception as exc:
         return kit.fail_open(HOOK, f"{exc.__class__.__name__}: {exc}")
     if not found and not reads:

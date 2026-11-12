@@ -92,9 +92,12 @@ def has_ruff_config(project: Path) -> bool:
 
 
 def resolve_ruff(project: Path) -> str | None:
+    section = kit.load_config(project).get("pytest")
+    venv = section.get("venv") if isinstance(section, dict) else None
+    venv_dir = venv if isinstance(venv, str) and venv else ".venv"
     for candidate in (
-        project / ".venv" / "Scripts" / "ruff.exe",  # Windows venv
-        project / ".venv" / "bin" / "ruff",  # POSIX venv
+        project / venv_dir / "Scripts" / "ruff.exe",  # Windows venv
+        project / venv_dir / "bin" / "ruff",  # POSIX venv
     ):
         if candidate.is_file():
             return str(candidate)
@@ -250,8 +253,7 @@ def main() -> int:
     if file_root is None:
         return 0  # a scratch file outside any git tree is not held to a lint baseline (as in the shell leg)
 
-    has_project = bool(os.environ.get("CLAUDE_PROJECT_DIR") or payload.get("cwd"))
-    project = kit.project_dir(payload) if has_project else file_root
+    project = file_root  # opt-in is judged where the file lives, not in the session's project dir
     if not lint_enabled(project):
         return 0
     ruff = resolve_ruff(project)
