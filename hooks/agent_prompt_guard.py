@@ -48,7 +48,7 @@ HOOK = "agent_prompt_guard"
 PYTEST_RE = re.compile(
     r"""(?:^|[;&|(`]|\$\s|\bthen\s|\bdo\s|(?:-l?c|/[cC]|-Command)\s+["'])\s*"""
     r"""(?P<runner>(?:"[^"\n]*"|'[^'\n]*'|[^\s"'`;&|()]+)\s+(?:-[\w.=-]+\s+)*-m\s+)?"""
-    r"""pytest\b(?![.,)])(?P<args>(?:[^\n`;&|)"']|"[^"\n]*"|'[^'\n]*')*)""",
+    r"""pytest\b(?![.,)/])(?P<args>(?:[^\n`;&|)"']|"[^"\n]*"|'[^'\n]*')*)""",
     re.M,
 )
 # `$PY`, `"$PY"`, `${PY}`, `%PY%` or a bare placeholder like `PY`: the interpreter is a variable.
